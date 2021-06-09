@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use JeroenDesloovere\VCard\VCard;
 
 class ConvertController extends Controller
 {
@@ -116,38 +119,37 @@ class ConvertController extends Controller
         $file = Arr::get($frd, 'file');
         $handle = fopen($file, "r");
         $row = 0;
+        $result = '';
         if ($handle !== FALSE) {
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                $newCart = '';
                 $num = count($data);
 
-
                 if ($row > 0) {
-                    for ($c = 0; $c < $num; $c++) {
-                        switch ($c) {
-                            case 1:
+                    $vCard = new VCard();
+                    // add personal data
+                    $vCard->addName(
+                        Arr::get($data, 3, ''),
+                        Arr::get($data, 1, ''), '', '', '');
 
-                                dd($data[$c]);
-                                break;
-                        }
-
-                        echo $data[$c] . "<br />\n";
-                    }
+                    // add work data
+                    $vCard->addCompany(Arr::get($data, 5, ''));
+                    $vCard->addJobtitle(Arr::get($data, 6, ''));
+                    $vCard->addRole(Arr::get($data, 7, ''));
+                    $vCard->addEmail(Arr::get($data, 88, ''));
+                    $vCard->addPhoneNumber(Arr::get($data, 40, ''), 'CELL');
+                    $vCard->addPhoneNumber(Arr::get($data, 38, ''), 'WORK');
+                    $vCard->addPhoneNumber(Arr::get($data, 37, ''), 'HOME');
+                    $result.=$vCard->getOutput();
                 }
-
                 $row++;
             }
             fclose($handle);
         }
-        dd($data);
 
-        $fileContent = file_get_contents($file);
-        $fileExplode = explode("\r\n", $fileContent);
-        $head = Arr::first($fileExplode);
-        $content = Arr::forget($fileExplode, 0);
+        $disc = Storage::disk('desktop');
+        $disc->put('OSX/'.'All'.'.vcf', $result);
 
-        dd($head, $content);
-
+        dd('end');
     }
 
 }
