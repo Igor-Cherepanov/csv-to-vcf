@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [\App\Http\Controllers\ConvertController::class, 'csvToVcfIndex'])->name('home');
+Route::post('/csv-to-vcf-convert', [\App\Http\Controllers\ConvertController::class, 'csvToVcfConvert'])->name('convert');
+
+Auth::routes();
+
+Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
