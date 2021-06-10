@@ -131,6 +131,17 @@ class ConvertController extends Controller
                         Arr::get($data, 3, ''),
                         Arr::get($data, 1, ''), '', '', '');
 
+                    $cellPhone = Arr::get($data, 40, '');
+                    $workPhone = Arr::get($data, 38, '');
+                    $homePhone = Arr::get($data, 37, '');
+                    $phone = $cellPhone;
+                    if ($phone === ''){
+                        $phone = $workPhone;
+                    }
+                    if ($phone === ''){
+                        $phone = $homePhone;
+                    }
+
                     // add work data
                     $vCard->addCompany(Arr::get($data, 5, ''));
                     $vCard->addJobtitle(Arr::get($data, 6, ''));
