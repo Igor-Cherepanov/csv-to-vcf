@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\VCardException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use JeroenDesloovere\VCard\VCard;
+use App\Models\VCard;
 
 class ConvertController extends Controller
 {
@@ -113,43 +114,46 @@ class ConvertController extends Controller
         return view('index');
     }
 
-    public function csvToVcfConvert(Request $request)
+    /**
+     * @param Request $request
+     * @throws VCardException
+     */
+    public function csvToVcfConvert(Request $request): void
     {
         $frd = $request->all();
         $file = Arr::get($frd, 'file');
-        $handle = fopen($file, "r");
+        $handle = fopen($file, 'rb');
         $row = 0;
         $result = '';
         if ($handle !== FALSE) {
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
                 $num = count($data);
-
                 if ($row > 0) {
                     $vCard = new VCard();
-                    // add personal data
+
+                    $cellPhone = Arr::get($data, 31, '');
+                    $workPhone = Arr::get($data, 40, '');
+                    $homePhone = Arr::get($data, 37, '');
+
                     $vCard->addName(
                         Arr::get($data, 3, ''),
-                        Arr::get($data, 1, ''), '', '', '');
+                        Arr::get($data, 1, ''),
+                        Arr::get($data, 2, '')
+                    );
 
-                    $cellPhone = Arr::get($data, 40, '');
-                    $workPhone = Arr::get($data, 38, '');
-                    $homePhone = Arr::get($data, 37, '');
-                    $phone = $cellPhone;
-                    if ($phone === ''){
-                        $phone = $workPhone;
-                    }
-                    if ($phone === ''){
-                        $phone = $homePhone;
-                    }
-
-                    // add work data
                     $vCard->addCompany(Arr::get($data, 5, ''));
                     $vCard->addJobtitle(Arr::get($data, 6, ''));
                     $vCard->addRole(Arr::get($data, 7, ''));
-                    $vCard->addEmail(Arr::get($data, 88, ''));
-                    $vCard->addPhoneNumber(Arr::get($data, 40, ''), 'CELL');
-                    $vCard->addPhoneNumber(Arr::get($data, 38, ''), 'WORK');
-                    $vCard->addPhoneNumber(Arr::get($data, 37, ''), 'HOME');
+                    $vCard->addEmail(Arr::get($data, 82, ''));
+                    if ($cellPhone !== ''){
+                        $vCard->addPhoneNumber($cellPhone, 'CELL');
+                    }
+                    if ($workPhone !== ''){
+                        $vCard->addPhoneNumber($workPhone, 'WORK');
+                    }
+                    if ($homePhone !== ''){
+                        $vCard->addPhoneNumber($homePhone, 'HOME');
+                    }
                     $result.=$vCard->getOutput();
                 }
                 $row++;
