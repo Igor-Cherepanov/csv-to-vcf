@@ -13,9 +13,15 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', [\App\Http\Controllers\ConvertController::class, 'csvToVcfIndex'])->name('home');
-Route::post('/csv-to-vcf-convert', [\App\Http\Controllers\ConvertController::class, 'csvToVcfConvert'])->name('convert');
+Route::get('/csv-to-vcf', [\App\Http\Controllers\ConvertController::class, 'csvToVcfIndex'])->name('csv-to-vcf.index');
+Route::post('/csv-to-vcf-convert', [\App\Http\Controllers\ConvertController::class, 'csvToVcfConvert'])->name('csv-to-vcf.convert');
+
+Route::get('/mails-to-excel', [\App\Http\Controllers\ConvertController::class, 'mailsToExcelIndex'])->name('mails-to-excel.index');
+Route::post('/mails-to-excel-convert', [\App\Http\Controllers\ConvertController::class, 'mailsToExcelConvert'])->name('mails-to-excel.convert');
+
+Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home.index');
 
 Auth::routes();
 
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+

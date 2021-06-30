@@ -8,6 +8,9 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Models\VCard;
+use App\Models\Users\UserMail;
+use Box\Spout\Reader\Common\Creator\ReaderEntityFactory;
+use Box\Spout\Reader\CSV\Sheet;
 
 class ConvertController extends Controller
 {
@@ -111,7 +114,7 @@ class ConvertController extends Controller
     {
         $frd = $request->all();
 
-        return view('index');
+        return view('csv-to-vcf.index');
     }
 
     /**
@@ -145,16 +148,16 @@ class ConvertController extends Controller
                     $vCard->addJobtitle(Arr::get($data, 6, ''));
                     $vCard->addRole(Arr::get($data, 7, ''));
                     $vCard->addEmail(Arr::get($data, 82, ''));
-                    if ($cellPhone !== ''){
+                    if ($cellPhone !== '') {
                         $vCard->addPhoneNumber($cellPhone, 'CELL');
                     }
-                    if ($workPhone !== ''){
+                    if ($workPhone !== '') {
                         $vCard->addPhoneNumber($workPhone, 'WORK');
                     }
-                    if ($homePhone !== ''){
+                    if ($homePhone !== '') {
                         $vCard->addPhoneNumber($homePhone, 'HOME');
                     }
-                    $result.=$vCard->getOutput();
+                    $result .= $vCard->getOutput();
                 }
                 $row++;
             }
@@ -162,9 +165,137 @@ class ConvertController extends Controller
         }
 
         $disc = Storage::disk('desktop');
-        $disc->put('OSX/'.'All'.'.vcf', $result);
+        $disc->put('OSX/' . 'All' . '.vcf', $result);
 
         dd('end');
+    }
+
+    public function mailsToExcelIndex(Request $request)
+    {
+        $frd = $request->all();
+
+        return view('emails-to-excel.index');
+    }
+
+    protected $addresses;
+
+    /**
+     * @param Request $request
+     * @throws \Box\Spout\Common\Exception\IOException
+     * @throws \Box\Spout\Common\Exception\UnsupportedTypeException
+     * @throws \Box\Spout\Reader\Exception\ReaderNotOpenedException
+     */
+    public function mailsToExcelConvert(Request $request): void
+    {
+//        $path = Storage::path('C:\Private\backup2.csv');
+        $path = 'C:\Users\Eilory\Desktop\convert\export4.csv';
+        $reader = ReaderEntityFactory::createReaderFromFile($path);
+        $reader->setFieldDelimiter(',');
+        $reader->open($path);
+//        $reader->setFieldEnclosure('@');
+//        $reader->setEncoding('UTF-16LE');
+        /** @var Sheet $sheet */
+        $headers = [
+            0 => "Тема",
+            1 => "Текст",
+            2 => "От: (имя)",
+            3 => "От: (адрес)",
+            4 => "От: (тип)",
+            5 => "Кому: (имя)",
+            6 => "Кому: (адрес)",
+            7 => "Кому: (тип)",
+            8 => "Копия: (имя)",
+            9 => "Копия: (адрес)",
+            10 => "Копия: (тип)",
+            11 => "СК: (имя)",
+            12 => "СК: (адрес)",
+            13 => "СК: (тип)",
+            14 => "Важность",
+            15 => "Категории",
+            16 => "Пометка",
+            17 => "Расстояние",
+            18 => "Счета",
+        ];
+
+        foreach ($reader->getSheetIterator() as $sheet) {
+            foreach ($sheet->getRowIterator() as $ket => $row) {
+                $attributes = array();
+                foreach ($row->getCells() as $i => $cell) {
+                    $attributes[$i] = $cell->getValue();
+                }
+
+                $fromName = $attributes[2];
+                $from = $attributes[3];
+                $toName = $attributes[5];
+                $toAddress = $attributes[6];
+
+                $this->push($from, $fromName);
+                $this->push($toAddress, $toName);
+            }
+
+        }
+
+        $FH = fopen('C:\Users\Eilory\Desktop\convert\export5.csv', 'wb');
+
+        fprintf($FH, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        foreach ($this->addresses as $email => $name) {
+            $row = [
+                $email,
+                $name,
+            ];
+
+
+            fputcsv($FH, $row, ',');
+        }
+        fclose($FH);
+
+
+
+
+        $path = 'C:\Private\export5.csv';
+        $disk = Storage::disk('desktop');
+        $content = $disk->get('export5.csv');
+        $result = str_replace(['"', "'"], '', $content);
+        $disk->put('export5.csv', $result);
+
+    }
+
+    public function push(string $address, string $name)
+    {
+        $blacklist = [
+            'Кому: (адрес)',
+            'От: (адрес)',
+        ];
+
+        if (!in_array($address, $blacklist)) {
+            $addresses = explode(';', $address);
+            $names = explode(';', $name);
+            foreach ($addresses as $i => $add) {
+                if (stripos($add, 'EXCHANGE') === false) {
+                    $email = $add;
+                    $name = $names[$i];
+
+                    $encoding = mb_detect_encoding($name);
+                    $result = preg_match('/\p{Cyrillic}/u', $name);
+
+
+                    if (false === $result && $encoding === 'UTF-8') {
+                        $name = mb_convert_encoding($name, "utf-8", "windows-1251");
+                    }
+
+                    if ($encoding !== 'UTF-8') {
+                        $this->addresses[$email] = $name;
+                        echo $encoding . ' ' . $name . ' ' . $email . PHP_EOL;
+                    }
+
+
+                }
+            }
+
+
+        }
+
     }
 
 }
