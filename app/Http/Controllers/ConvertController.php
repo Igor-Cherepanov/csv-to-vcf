@@ -16,16 +16,16 @@ class ConvertController extends Controller
 {
 
     public const FIELDS = [
-        0 => "Обращение",
-        1 => "Имя",
-        2 => "Отчество",
-        3 => "Фамилия",
-        4 => "Суффикс",
-        5 => "Организация",
-        6 => "Отдел",
-        7 => "Должность",
-        8 => "Улица (раб. адрес)",
-        9 => "Улица 2 (раб. адрес)",
+        0  => "Обращение",
+        1  => "Имя",
+        2  => "Отчество",
+        3  => "Фамилия",
+        4  => "Суффикс",
+        5  => "Организация",
+        6  => "Отдел",
+        7  => "Должность",
+        8  => "Улица (раб. адрес)",
+        9  => "Улица 2 (раб. адрес)",
         10 => "Улица 3 (раб. адрес)",
         11 => "Город (раб. адрес)",
         12 => "Область (раб. адрес)",
@@ -123,10 +123,10 @@ class ConvertController extends Controller
      */
     public function csvToVcfConvert(Request $request): void
     {
-        $frd = $request->all();
-        $file = Arr::get($frd, 'file');
+        $frd    = $request->all();
+        $file   = Arr::get($frd, 'file');
         $handle = fopen($file, 'rb');
-        $row = 0;
+        $row    = 0;
         $result = '';
         if ($handle !== FALSE) {
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
@@ -164,8 +164,8 @@ class ConvertController extends Controller
             fclose($handle);
         }
 
-        $disc = Storage::disk('desktop');
-        $disc->put('OSX/' . 'All' . '.vcf', $result);
+        $disc = Storage::disk('c_private');
+        $disc->put('All' . '.vcf', $result);
 
         dd('end');
     }
@@ -187,81 +187,122 @@ class ConvertController extends Controller
      */
     public function mailsToExcelConvert(Request $request): void
     {
-//        $path = Storage::path('C:\Private\backup2.csv');
-        $path = 'C:\Users\Eilory\Desktop\convert\export4.csv';
-        $reader = ReaderEntityFactory::createReaderFromFile($path);
-        $reader->setFieldDelimiter(',');
-        $reader->open($path);
-//        $reader->setFieldEnclosure('@');
-//        $reader->setEncoding('UTF-16LE');
-        /** @var Sheet $sheet */
-        $headers = [
-            0 => "Тема",
-            1 => "Текст",
-            2 => "От: (имя)",
-            3 => "От: (адрес)",
-            4 => "От: (тип)",
-            5 => "Кому: (имя)",
-            6 => "Кому: (адрес)",
-            7 => "Кому: (тип)",
-            8 => "Копия: (имя)",
-            9 => "Копия: (адрес)",
-            10 => "Копия: (тип)",
-            11 => "СК: (имя)",
-            12 => "СК: (адрес)",
-            13 => "СК: (тип)",
-            14 => "Важность",
-            15 => "Категории",
-            16 => "Пометка",
-            17 => "Расстояние",
-            18 => "Счета",
-        ];
+        $count = 6;
 
-        foreach ($reader->getSheetIterator() as $sheet) {
-            foreach ($sheet->getRowIterator() as $ket => $row) {
-                $attributes = array();
-                foreach ($row->getCells() as $i => $cell) {
-                    $attributes[$i] = $cell->getValue();
+        $disk    = Storage::disk('c_private');
+        $disk->put('final.csv', '');
+        for ($iCount = 1; $iCount <= $count; $iCount++) {
+//        $path   = Storage::path('C:\Private\backup2.csv');
+            $path       = 'C:\Private\export_step' . $iCount . '.csv';
+            $pathOutput = 'C:\Private\export' . ($iCount + $count) . '.csv';
+            $pathFinish = 'C:\Private\final.csv';
+
+            $reader = ReaderEntityFactory::createReaderFromFile($path);
+            $reader->setFieldDelimiter(',');
+            $reader->open($path);
+            $reader->setFieldEnclosure('@');
+            $reader->setEncoding('UTF-16LE');
+            /** @var Sheet $sheet */
+            $headers = [
+                0  => "Тема",
+                1  => "Текст",
+                2  => "От: (имя)",
+                3  => "От: (адрес)",
+                4  => "От: (тип)",
+                5  => "Кому: (имя)",
+                6  => "Кому: (адрес)",
+                7  => "Кому: (тип)",
+                8  => "Копия: (имя)",
+                9  => "Копия: (адрес)",
+                10 => "Копия: (тип)",
+                11 => "СК: (имя)",
+                12 => "СК: (адрес)",
+                13 => "СК: (тип)",
+                14 => "Важность",
+                15 => "Категории",
+                16 => "Пометка",
+                17 => "Расстояние",
+                18 => "Счета",
+            ];
+//
+            foreach ($reader->getSheetIterator() as $sheet) {
+                foreach ($sheet->getRowIterator() as $ket => $row) {
+                    $attributes = array();
+                    foreach ($row->getCells() as $i => $cell) {
+                        $attributes[$i] = $cell->getValue();
+                    }
+
+                    $fromName  = $attributes[2];
+                    $from      = $attributes[3];
+                    $toName    = $attributes[5];
+                    $toAddress = $attributes[6];
+
+                    $this->push($from, $fromName);
+                    $this->push($toAddress, $toName);
                 }
 
-                $fromName = $attributes[2];
-                $from = $attributes[3];
-                $toName = $attributes[5];
-                $toAddress = $attributes[6];
-
-                $this->push($from, $fromName);
-                $this->push($toAddress, $toName);
             }
 
+            $FH = fopen($pathOutput, 'wb');
+
+            fprintf($FH, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            foreach ($this->addresses as $email => $name) {
+                $row = [
+                    $email,
+                    $name,
+                ];
+
+
+                fputcsv($FH, $row, ',');
+            }
+            fclose($FH);
+
+
+            file_put_contents($pathFinish, file_get_contents($pathFinish) . file_get_contents($pathOutput));
         }
 
-        $FH = fopen('C:\Users\Eilory\Desktop\convert\export5.csv', 'wb');
+        $disk    = Storage::disk('c_private');
+        $content = $disk->get('final.csv');
+        $result  = str_replace(['"', "'"], '', $content);
+        $disk->put('final.csv', $result);
 
-        fprintf($FH, chr(0xEF) . chr(0xBB) . chr(0xBF));
-
-        foreach ($this->addresses as $email => $name) {
-            $row = [
-                $email,
-                $name,
-            ];
-
-
-            fputcsv($FH, $row, ',');
-        }
-        fclose($FH);
-
-
-
-
-        $path = 'C:\Private\export5.csv';
-        $disk = Storage::disk('desktop');
-        $content = $disk->get('export5.csv');
-        $result = str_replace(['"', "'"], '', $content);
-        $disk->put('export5.csv', $result);
+//        $path    = 'C:\Private\export_step1.csv';
+//        $disk    = Storage::disk('c_private');
+//        $content = $disk->get('export_step1.csv');
+//        $result  = str_replace(['"', "'"], '', $content);
+//        $disk->put('export_step1.csv', $result);
+//
+//        $path    = 'C:\Private\export_step2.csv';
+//        $disk    = Storage::disk('c_private');
+//        $content = $disk->get('export_step3.csv');
+//        $result  = str_replace(['"', "'"], '', $content);
+//        $disk->put('export_step3.csv', $result);
 
     }
 
-    public function push(string $address, string $name)
+    function joinFiles(array $files, $result)
+    {
+        if (!is_array($files)) {
+            throw new \Exception('`$files` must be an array');
+        }
+        $wH = fopen($result, 'wb+');
+        foreach ($files as $file) {
+            $fh = fopen($file, 'rb');
+            while (!feof($fh)) {
+                fwrite($wH, fgets($fh));
+            }
+            fclose($fh);
+            unset($fh);
+            fwrite($wH, "\n"); //usually last line doesn't have a newline
+        }
+        fclose($wH);
+        unset($wH);
+    }
+
+
+    public
+    function push(?string $address, string $name)
     {
         $blacklist = [
             'Кому: (адрес)',
@@ -270,14 +311,14 @@ class ConvertController extends Controller
 
         if (!in_array($address, $blacklist)) {
             $addresses = explode(';', $address);
-            $names = explode(';', $name);
+            $names     = explode(';', $name);
             foreach ($addresses as $i => $add) {
                 if (stripos($add, 'EXCHANGE') === false) {
                     $email = $add;
-                    $name = $names[$i];
+                    $name  = $names[$i];
 
                     $encoding = mb_detect_encoding($name);
-                    $result = preg_match('/\p{Cyrillic}/u', $name);
+                    $result   = preg_match('/\p{Cyrillic}/u', $name);
 
 
                     if (false === $result && $encoding === 'UTF-8') {
